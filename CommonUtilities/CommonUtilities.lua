@@ -1,18 +1,18 @@
-CU = {};
+CU = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0");
 
-function CU.PartyMessage(aMessage)
+function CU:PartyMessage(aMessage)
 	if(aMessage ~= nil) then
-		SendChatMessage("[GroupManager]: " .. aMessage, "PARTY");
+		SendChatMessage(aMessage, "PARTY");
 	end;
 end;
 
-function CU.WorldMessage(aMessage)
+function CU:WorldMessage(aMessage)
 	if(aMessage ~= nil) then
 		SendChatMessage(aMessage, "CHANNEL", nil, GetChannelName("World"));
 	end;
 end;
 
-function CU.GetFullCurrency(aCopperAmount)
+function CU:GetFullCurrency(aCopperAmount)
 	local amount = aCopperAmount;
 	local gold = 0;
 	local silver = 0;
@@ -35,6 +35,6 @@ function CU.GetFullCurrency(aCopperAmount)
 	return returnMsg;
 end;
 
-function CU.ConvertToCopper(aGold, aSilver, aCopper)
+function CU:ConvertToCopper(aGold, aSilver, aCopper)
 	return (aGold * 10000) + (aSilver * 100) + aCopper;
 end;

@@ -1,4 +1,5 @@
-local AM = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0", "AceEvent-2.0", "AceDB-2.0");
+
+local AM = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0", "AceEvent-2.0", "AceDB-2.0");
 AM:RegisterDB("AuctionManagerDB", "AuctionManagerDBPC");
 AM:RegisterDefaults("profile", {
 	myUnderCutPercent = 0.95,
@@ -7,6 +8,11 @@ AM:RegisterDefaults("profile", {
 	myPostCount = 0,
 })
 
+--[[
+
+	Checks if the player has a given item in his/her inventory
+
+]]--
 function AM:DoesInventoryContainItem(aItemName)
 	for bag = 0, NUM_BAG_SLOTS do
 		for slot = 1, GetContainerNumSlots(bag) do
@@ -22,6 +28,12 @@ function AM:DoesInventoryContainItem(aItemName)
 	return false;
 end;
 
+
+--[[
+
+	Returns itemName, maxStack and itemCount for an item in a given bag and bagslot
+
+]]--
 function AM:GetItemInfo(aBagID, aBagSlot)
 
 	local link = GetContainerItemLink(aBagID, aBagSlot);
@@ -37,6 +49,12 @@ function AM:GetItemInfo(aBagID, aBagSlot)
 	return nil, nil, nil;
 end;
 
+
+--[[
+
+	Searches for the first of a given item in the players inventory. If the item is found the bag and bagslot is returned
+
+]]--
 function AM:FindFirstOfItem(aItemName)
 	for bag = 0, NUM_BAG_SLOTS do
 		for slot = 1, GetContainerNumSlots(bag) do
@@ -51,6 +69,12 @@ function AM:FindFirstOfItem(aItemName)
 	return nil, nil;
 end;
 
+
+--[[
+
+	Searches for the given item in the players inventory, starting from the given bag and bagslot. If the item is found the bag and bagslot is returned
+
+]]--
 function AM:FindNextOfItem(aItem, aStartBag, aStartSlot)
 	local startBag = aStartBag;
 	local startSlot = aStartSlot + 1;
@@ -77,6 +101,12 @@ function AM:FindNextOfItem(aItem, aStartBag, aStartSlot)
 	return nil, nil;
 end;
 
+
+--[[
+
+	Finds the first bag that has an empty slot, if one is found the bagid is returned
+
+]]--
 function AM:GetFirstBagWithEmptySlot()
 	for bag = 0, NUM_BAG_SLOTS do
 		for slot = 1, GetContainerNumSlots(bag) do
@@ -90,6 +120,12 @@ function AM:GetFirstBagWithEmptySlot()
 	return nil;
 end;
 
+
+--[[
+
+	Finds the first free slot in the players inventory, if one is found the bag and bagslot is returned
+
+]]--
 function AM:GetFirstFreeSlot()
 	for bag = 0, NUM_BAG_SLOTS do
 		for slot = 1, GetContainerNumSlots(bag) do
@@ -103,35 +139,12 @@ function AM:GetFirstFreeSlot()
 	return nil, nil;
 end;
 
-function AM:StackifItem(aItem)
-	for bag = 0, NUM_BAG_SLOTS do
-		for slot = 1, GetContainerNumSlots(bag) do
-			
-			local link = GetContainerItemLink(bag, slot);
-			if(link ~= nil) then
-				local _, _, itemLink = string.find(link,"(item:%d+)");	
-				local name = GetItemInfo(itemLink);
-				
-				
-				if(name == aItem) then
-					PickupContainerItem(bag, slot);
-				
-					local freeBag = self:GetFirstBagWithEmptySlot();
-					if(freeBag ~= nil) then
-						if(freeBag == 19) then
-							PutItemInBackpack();
-						else
-							PutItemInBag(freeBag);
-						end;
-					else
-						ClearCursor();
-					end;
-				end;
-			end;
-		end;
-	end;
-end;
 
+--[[
+
+	Starts an auction with the given item and prices
+
+]]--
 function AM:PlaceAuction(aItem, aBagID, aBagSlot, aStackSize, aBidPerUnit, aBOPerUnit, aCallBackFunction)
 
 	PickupContainerItem(aBagID, aBagSlot);
@@ -144,13 +157,20 @@ function AM:PlaceAuction(aItem, aBagID, aBagSlot, aStackSize, aBidPerUnit, aBOPe
 	if(bid == nil or bid == 0) then
 		bid = math.floor(buyout * 0.75);
 	end;
-		local deposit = CalculateAuctionDeposit(480);	
+	
+	local deposit = CalculateAuctionDeposit(480);
+	
 	StartAuction(bid, buyout, 480);
 	self:TriggerEvent("AuctionData_AddPendingSale", aItem, buyout + deposit, aStackSize);
 	AM:ScheduleEvent(self.PostAuctions, 1, self, aItem, aBidPerUnit, aBOPerUnit, aCallBackFunction);
-	
 end;
 
+
+--[[
+
+	Finds an item that should be posted to the AuctionHouse and Schedules a PlaceAuction-action
+
+]]--
 function AM:PostAuctions(aItem, aBidPerUnit, aBOPerUnit, aCallBackFunction)
 	local bag, slot = self:FindFirstOfItem(aItem);
 	
@@ -168,16 +188,14 @@ function AM:PostAuctions(aItem, aBidPerUnit, aBOPerUnit, aCallBackFunction)
 	end;
 end;
 
-function AM:ExtractPrice(aString, aPattern)
-	local startIndex, endIndex = string.find(aString, aPattern);
-	
-	if(startIndex == nil or endIndex == nil) then
-		return 0;
-	end;
-	
-	return tonumber(string.sub(aString, startIndex, endIndex-1));
-end;
 
+--[[
+
+	Loops over all the instances of the given item in the current auctionhouse page and updates the data for that item
+	using the bid and buyout found.
+	When all the instances has been checked QueryAH is Scheduled to query the next page
+
+]]--
 function AM:CalcAveragePrice(aItem, aPage)
 	local batch, count = GetNumAuctionItems("list");
 	
@@ -194,8 +212,8 @@ function AM:CalcAveragePrice(aItem, aPage)
 	
 	if(batch < 50) then
 	
-		local bid = AuctionData.db.profile.myItemTable[aItem].myBid;
-		local buyout = AuctionData.db.profile.myItemTable[aItem].myBuyout;
+		local bid = AuctionData:GetItemBid(aItem);
+		local buyout = AuctionData:GetItemBuyout(aItem);
 		
 		AuctionData.db.profile.myItemTable[aItem].myQueryFinished = true;
 		self:Print("");
@@ -209,6 +227,13 @@ function AM:CalcAveragePrice(aItem, aPage)
 	AM:ScheduleEvent(self.QueryAH, 0.5, self, aItem, aPage + 1);
 end;
 
+
+--[[
+
+	Tries to query the given page, if it cant then it Schedules a callback to itself until it can.
+	Once the query is sucessful CalcAveragePrice is Scheduled.
+
+]]--
 function AM:QueryAH(aItem, aPage)
 	local canQuery = CanSendAuctionQuery();
 	
@@ -221,59 +246,37 @@ function AM:QueryAH(aItem, aPage)
 	end;
 end;
 
+
+--[[
+
+	Starts the querying of a single item, simply checks if the item is in the watchlist and Schedules QueryAH if is
+
+]]--
 function AM:QueryItem(aItem)
-	if(AuctionData.db.profile.myItemTable[aItem] ~= nil) then
-		AuctionData.db.profile.myItemTable[aItem].myQueryStarted = true;
-		AuctionData.db.profile.myItemTable[aItem].myMinBid = -1;
-		AuctionData.db.profile.myItemTable[aItem].myMinBO = -1;
+	if(AuctionData:GetItemTable(aItem) ~= nil) then
+		AuctionData:ResetQueryData(aItem);
 		self:Print("");
 		self:Print("Querying " .. aItem .. "...");
 		self:QueryAH(aItem, 0);
 	end;
 end;
 
-function AM:QueryAllItems()
-	for name, info in pairs(AuctionData.db.profile.myItemTable) do
-		if(info.myQueryStarted == false) then
-			self:Print("");
-			self:Print("Started Querying " .. name);
-			AuctionData.db.profile.myItemTable[name].myQueryStarted = true;
-			AuctionData.db.profile.myItemTable[name].myMinBid = -1;
-			AuctionData.db.profile.myItemTable[name].myMinBO = -1;
-			self:QueryAH(name, 0);
-			self:ScheduleEvent(self.QueryAllItems, 2, self);
-			return;
-		end
-		
-		if(info.myQueryFinished == false) then
-			self:ScheduleEvent(self.QueryAllItems, 2, self);
-			return;
-		end;
-		
-	end;
-	
-	self:Print("");
-	self:Print("Querying finished.");
-	
-	for name, info in pairs(AuctionData.db.profile.myItemTable) do
-		AuctionData.db.profile.myItemTable[name].myQueryFinished = false;
-		AuctionData.db.profile.myItemTable[name].myQueryStarted = false;
-	end;	
-end;
 
+--[[
+
+	Queries an entire table of items, same principle as QueryItem, exept that it also Schedules a callback to itself while an item is being processed,
+	until that item finishes, then moves on the next item
+
+]]--
 function AM:QueryItemTable(aTable)
 	for name, _ in pairs(aTable) do
 	
-		local info = AuctionData.db.profile.myItemTable[name];
-	
-	
+		local info = AuctionData:GetItemTable(name);
 		if(info ~= nil) then
 			if(info.myQueryStarted == false) then
 				self:Print("");
 				self:Print("Started Querying " .. name);
-				AuctionData.db.profile.myItemTable[name].myQueryStarted = true;
-				AuctionData.db.profile.myItemTable[name].myMinBid = -1;
-				AuctionData.db.profile.myItemTable[name].myMinBO = -1;
+				AuctionData:ResetQueryData(name);
 				self:QueryAH(name, 0);
 				self:ScheduleEvent(self.QueryItemTable, 2, self, aTable);
 				return;
@@ -292,14 +295,15 @@ function AM:QueryItemTable(aTable)
 	self:Print("");
 	self:Print("Querying finished.");
 	
-	for name, _ in pairs(aTable) do
-		if(AuctionData.db.profile.myItemTable[name] ~= nil) then
-			AuctionData.db.profile.myItemTable[name].myQueryFinished = false;
-			AuctionData.db.profile.myItemTable[name].myQueryStarted = false;
-		end;
-	end;	
+	AuctionData:FinishQuerying();
 end;
 
+
+--[[
+
+	Goes over the players inventory and adds all items thats also in the watchlist to a table that can be used for querying
+
+]]--
 function AM:GetInventoryAsQueryTable()
 	local inv = {};
 
@@ -319,6 +323,12 @@ function AM:GetInventoryAsQueryTable()
 	return inv;
 end;
 
+
+--[[
+
+	Goes over the players inventory and adds all items to the watchlist
+
+]]--
 function AM:WatchAllItemsInBag()
 	for bag = 0, NUM_BAG_SLOTS do
 		for slot = 1, GetContainerNumSlots(bag) do
@@ -332,22 +342,27 @@ function AM:WatchAllItemsInBag()
 	end;
 end;
 
+
+--[[
+
+	Posts a item using the Min Buyout that Querying found, to make sure that it realy is the 
+	lowest price (for undercutting) the price is then multiplied by a modifier thats defined in the top.
+
+]]--
 function AM:PostItemUsingUndercut(aItem)
-	local bid = AuctionData.db.profile.myItemTable[aItem].myMinBid;
-	local buyout = AuctionData.db.profile.myItemTable[aItem].myMinBO;
+	local bid = AuctionData:GetItemMinBid(aItem);
+	local buyout = AuctionData:GetItemMinBuyout(aItem);
 	
 	
 	if(bid ~= nil and buyout ~= nil) then
 
-		self:StackifItem(aItem);
-		
 		bid = math.floor(bid * self.db.profile.myUnderCutPercent);
 		buyout = math.floor(buyout * self.db.profile.myUnderCutPercent);
 		
 		self:Print("");
 		self:Print("Posting: " .. aItem);
-		self:Print("Bid: " .. CU.GetFullCurrency(bid));
-		self:Print("Buyout: " .. CU.GetFullCurrency(buyout));
+		self:Print("Bid: " .. CU:GetFullCurrency(bid));
+		self:Print("Buyout: " .. CU:GetFullCurrency(buyout));
 		
 		AM:ScheduleEvent(self.PostAuctions, 1, self, aItem, bid, buyout, self.AutoPostEverything);
 		return true;
@@ -360,14 +375,17 @@ function AM:PostItemUsingUndercut(aItem)
 	return nil;
 end;
 
+
+--[[
+
+	Posts a item using the Average Buyout that Querying found
+
+]]--
 function AM:PostItemUsingAvgPrice(aItem)
-	local bid = AuctionData.db.profile.myItemTable[aItem].myBid;
-	local buyout = AuctionData.db.profile.myItemTable[aItem].myBuyout;
-	
+	local bid = AuctionData:GetItemBid(aItem);
+	local buyout = AuctionData:GetItemBuyout(aItem);
 	
 	if(bid ~= nil and buyout ~= nil) then
-
-		self:StackifItem(aItem);
 		
 		bid = math.floor(bid * self.db.profile.myAvgPriceModifier);
 		buyout = math.floor(buyout * self.db.profile.myAvgPriceModifier);
@@ -375,8 +393,8 @@ function AM:PostItemUsingAvgPrice(aItem)
 		
 		self:Print("");
 		self:Print("Posting: " .. aItem);
-		self:Print("Bid: " .. CU.GetFullCurrency(bid));
-		self:Print("Buyout: " .. CU.GetFullCurrency(buyout) );
+		self:Print("Bid: " .. CU:GetFullCurrency(bid));
+		self:Print("Buyout: " .. CU:GetFullCurrency(buyout) );
 		
 		AM:ScheduleEvent(self.PostAuctions, 1, self, aItem, bid, buyout, self.AutoPostEverything);
 		return true;
@@ -389,8 +407,15 @@ function AM:PostItemUsingAvgPrice(aItem)
 	return nil;
 end;
 
+
+--[[
+
+	Loops over all the items in the watchlist, if that item is also found the players inventory then its posted.
+	Based on the myIsUnderCutting variable the posting uses either Undercuting of AveragePricing.
+
+]]--
 function AM:AutoPostEverything()
-	for name, info in pairs(AuctionData.db.profile.myItemTable) do
+	for name, info in pairs(AuctionData:GetDataTable()) do
 		if(self:DoesInventoryContainItem(name) == true and AuctionData.db.profile.myItemTable[name].mySkipPosting == false) then
 			local posted = nil;
 			if(self.db.profile.myIsUnderCutting == true) then
@@ -408,12 +433,17 @@ function AM:AutoPostEverything()
 	
 	self:Print("Finished posting, posted " .. self.db.profile.myPostCount .. " auction.");
 	
-	for name, info in pairs(AuctionData.db.profile.myItemTable) do
-		AuctionData.db.profile.myItemTable[name].mySkipPosting = false;
-		self.db.profile.myPostCount = 0;
-	end;
+	AuctionData:ResetPostingData();
+	self.db.profile.myPostCount = 0;
 end;
 
+
+--[[
+
+	Opens the Auctions-tab in the auctionhouse and then closes it agian.
+	If the tab hasnt been shown before you start posting auctions it produces errors
+
+]]--
 function AM:ToggleAuctionsPage()
 	if(AuctionFrameAuctions:IsVisible() == false) then
 		AuctionFrameAuctions:Show();
@@ -421,6 +451,18 @@ function AM:ToggleAuctionsPage()
 	end;
 end;
 
+
+
+
+----------------------
+---   MENU SETUP   ---
+----------------------
+
+--[[
+
+	Constructs the DewDropmenu
+
+]]--
 function AM:CreateDewDropMenu()
 	self.DewDrop = AceLibrary("Dewdrop-2.0");
 	
@@ -471,11 +513,7 @@ function AM:CreateDewDropMenu()
 				name = 'Query All Items',
 				desc = 'Queries all Watched items',
 				func = function()
-					for name, info in pairs(AuctionData.db.profile.myItemTable) do
-						AuctionData.db.profile.myItemTable[name].myQueryFinished = false;
-						AuctionData.db.profile.myItemTable[name].myQueryStarted = false;
-					end;
-					self:QueryAllItems();
+					self:QueryItemTable(AuctionData:GetDataTable());
 				end;
 			},
 			queryInventory = {
@@ -483,10 +521,6 @@ function AM:CreateDewDropMenu()
 				name = 'Query Inventory',
 				desc = 'Queries all watched items in the inventory',
 				func = function()
-					for name, info in pairs(AuctionData.db.profile.myItemTable) do
-						AuctionData.db.profile.myItemTable[name].myQueryFinished = false;
-						AuctionData.db.profile.myItemTable[name].myQueryStarted = false;
-					end;
 					self:QueryItemTable(self:GetInventoryAsQueryTable());
 				end;
 			},
@@ -552,6 +586,12 @@ function AM:CreateDewDropMenu()
 	return dewMenu;
 end;
 
+
+--[[
+
+	Registers the chatcommand and binds the dewdropmenu
+
+]]--
 function AM:InitMenu()
 	if(not self.menu) then
 		self.menu = AM:CreateDewDropMenu();
@@ -575,5 +615,6 @@ function AM:InitMenu()
 end;
 
 function AM:OnEnable()
+	
 	self:InitMenu();
 end

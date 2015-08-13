@@ -21,6 +21,135 @@ function AuctionData:OnEnable()
 	self:RegisterEvent("AuctionData_AddPendingSale", "AddPendingSale");
 end;
 
+
+--[[
+
+	Resets all the variables used when querying, to prepare the addon for a new query i the future
+
+]]--
+function AuctionData:FinishQuerying()
+	for name, info in pairs(self.db.profile.myItemTable) do
+		self.db.profile.myItemTable[name].myQueryFinished = false;
+		self.db.profile.myItemTable[name].myQueryStarted = false;
+	end;	
+end;
+
+
+--[[
+
+	Returns the entire ItemTable
+
+]]--
+function AuctionData:GetDataTable()
+
+	return self.db.profile.myItemTable;
+end;
+
+
+--[[
+
+	Resets all the variables used when posting, to prepare the addon for a new postaction i the future
+
+]]--
+function AuctionData:ResetPostingData()
+	for name, info in pairs(self.db.profile.myItemTable) do
+		self.db.profile.myItemTable[name].mySkipPosting = false;
+	end;
+end;
+
+
+--[[
+
+	Resets all the variables used when querying for one item, so that there is no old data when a query is performed
+
+]]--
+function AuctionData:ResetQueryData(aItemName)
+	self.db.profile.myItemTable[aItemName].myQueryStarted = true;
+	self.db.profile.myItemTable[aItemName].myMinBid = -1;
+	self.db.profile.myItemTable[aItemName].myMinBO = -1;
+end;
+
+
+--[[
+
+	Returns the infotable for a specific item
+
+]]--
+function AuctionData:GetItemTable(aItemName)
+
+	return self.db.profile.myItemTable[aItemName];	
+end;
+
+
+--[[
+
+	Returns the average bid for a specific item
+
+]]--
+function AuctionData:GetItemBid(aItemName)
+	local info = self:GetItemTable(aItemName);
+
+	if(info ~= nil) then
+		return info.myBid;
+	end;
+
+	return nil;
+end;
+
+
+--[[
+
+	Returns the average buyout for a specific item
+
+]]--
+function AuctionData:GetItemBuyout(aItemName)
+	local info = self:GetItemTable(aItemName);
+
+	if(info ~= nil) then
+		return info.myBuyout;
+	end;
+
+	return nil;
+end;
+
+
+--[[
+
+	Returns the minimum bid for a specific item
+
+]]--
+function AuctionData:GetItemMinBid(aItemName)
+	local info = self:GetItemTable(aItemName);
+
+	if(info ~= nil) then
+		return info.myMinBid;
+	end;
+
+	return nil;
+end;
+
+
+--[[
+
+	Returns the minimum buyout for a specific item
+
+]]--
+function AuctionData:GetItemMinBuyout(aItemName)
+	local info = self:GetItemTable(aItemName);
+
+	if(info ~= nil) then
+		return info.myMinBO;
+	end;
+
+	return nil;
+end;
+
+
+--[[
+
+	Prints the prices for a specific item into the DefaultChatFrame
+
+]]--
 function AuctionData:PrintItemPrice(aItemName)
 
 	if(self.db.profile.myItemTable[aItemName] == nil) then
@@ -32,11 +161,17 @@ function AuctionData:PrintItemPrice(aItemName)
 		local minBid = self.db.profile.myItemTable[aItemName].myMinBid;
 		local minBuyout = self.db.profile.myItemTable[aItemName].myMinBO;
 		
-		self:Print("Avg Bid: " .. CU.GetFullCurrency(bid) .. ", Min Bid: " .. CU.GetFullCurrency(minBid));
-		self:Print("Avg Buyout: " .. CU.GetFullCurrency(buyout) .. ", Min Buyout: " .. CU.GetFullCurrency(minBuyout));
+		self:Print("Avg Bid: " .. CU:GetFullCurrency(bid) .. ", Min Bid: " .. CU:GetFullCurrency(minBid));
+		self:Print("Avg Buyout: " .. CU:GetFullCurrency(buyout) .. ", Min Buyout: " .. CU:GetFullCurrency(minBuyout));
 	end;
 end;
 
+
+--[[
+
+	Prints the salesdata of a specific item into the DefaultChatFrame
+
+]]--
 function AuctionData:PrintSalesData(aItemName)
 	if(self.db.profile.mySalesRecord[aItemName] == nil) then
 		self:Print("No Data for " .. aItemName);
@@ -46,11 +181,17 @@ function AuctionData:PrintSalesData(aItemName)
 		local fails = self.db.profile.mySalesRecord[aItemName].myFailedSales;
 
 		self:Print(aItemName .. ":");
-		self:Print("Successful Sales: " .. successes .. ", (Avg Price: " .. CU.GetFullCurrency(self.db.profile.mySalesRecord[aItemName].myAvgPrice) .. ")");
+		self:Print("Successful Sales: " .. successes .. ", (Avg Price: " .. CU:GetFullCurrency(self.db.profile.mySalesRecord[aItemName].myAvgPrice) .. ")");
 		self:Print("Failed Sales: " .. fails);
 	end;
 end;
 
+
+--[[
+
+	Adds a item to the watchlist (items that gets queried/posted)
+
+]]--
 function AuctionData:WatchItem(aItem)
 	if(self.db.profile.myItemTable[aItem] == nil) then
 		self.db.profile.myItemTable[aItem] = {
@@ -68,6 +209,12 @@ function AuctionData:WatchItem(aItem)
 	end;
 end;
 
+
+--[[
+
+	Removes a item from the watchlist (items that gets queried/posted)
+
+]]--
 function AuctionData:UnwatchItem(aItem)
 	if(self.db.profile.myItemTable[aItem] ~= nil) then
 		self.db.profile.myItemTable[aItem] = nil;
@@ -75,12 +222,24 @@ function AuctionData:UnwatchItem(aItem)
 	end;
 end;
 
+
+--[[
+
+	Clears the watchlist (items that gets queried/posted), NOT REVERSABLE
+
+]]--
 function AuctionData:ResetWatchList()
 	for name, _ in pairs(self.db.profile.myItemTable) do
 		self:UnwatchItem(name);
 	end;
 end;
 
+
+--[[
+
+	Resets all the prices gathered by the addon, used to clear out corrupt data, NOT REVERSABLE
+
+]]--
 function AuctionData:ResetAllPrices()
 	for key, _ in pairs(self.db.profile.myItemTable) do
 		self.db.profile.myItemTable[key].myBid = 0;
@@ -94,6 +253,12 @@ function AuctionData:ResetAllPrices()
 	self:Print("All prices reset to 0");
 end;
 
+
+--[[
+
+	Updates the average bid and buyout for a specific item. Used while querying
+
+]]--
 function AuctionData:UpdateItemPrice(aItem, aBid, aBuyout, aStackSize)	
 	local bidPerUnit = aBid / aStackSize;
 	local buyoutPerUnit = aBuyout / aStackSize;
@@ -117,6 +282,12 @@ function AuctionData:UpdateItemPrice(aItem, aBid, aBuyout, aStackSize)
 	self.db.profile.myItemTable[aItem].myBuyout = math.floor(newBuyout / self.db.profile.myItemTable[aItem].myDataCount);
 end;
 
+
+--[[
+
+	Updates the min bid for a specific item. Used while querying
+
+]]--
 function AuctionData:UpdateMinBid(aItem, aCost, aStackSize)
 	if(aCost > 0) then
 		--Calculate Bid price per item
@@ -132,6 +303,12 @@ function AuctionData:UpdateMinBid(aItem, aCost, aStackSize)
 	end;
 end;
 
+
+--[[
+
+	Updates the min buyout for a specific item. Used while querying
+
+]]--
 function AuctionData:UpdateMinBO(aItem, aCost, aStackSize)
 	if(aCost > 0) then
 		--Calculate Buyout price per item
@@ -147,6 +324,12 @@ function AuctionData:UpdateMinBO(aItem, aCost, aStackSize)
 	end;
 end;
 
+
+--[[
+
+	Adds a new entry into the SalesRecord table
+
+]]--
 function AuctionData:RegisterNewSalesItem(aItem)
 	self.db.profile.mySalesRecord[aItem] = {
 		mySucessfulSales = 0,
@@ -157,6 +340,12 @@ function AuctionData:RegisterNewSalesItem(aItem)
 	self:Print("Registered new item: " .. aItem);
 end;
 
+
+--[[
+
+	Updates the SalesData when recieving a mail from the auctionhouse, NOT WORKING PROPERLY
+
+]]--
 function AuctionData:UpdateSalesData(aMailSubject, aMoneyAmount)
 
 	local item = nil;
@@ -207,6 +396,12 @@ function AuctionData:UpdateSalesData(aMailSubject, aMoneyAmount)
 	end;
 end;
 
+
+--[[
+
+	Registers a pending sale, used when posting auctions. Used to keep track of sucessful sales and track prices of sales etc
+
+]]--
 function AuctionData:AddPendingSale(aItem, aBuyout, aStackSize)
 	local priceAfterAHCut = math.floor(aBuyout * 0.95);
 

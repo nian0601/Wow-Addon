@@ -5,6 +5,7 @@
 ## Version: 2.0.10 BETA
 ## SavedVariables: AuctionManagerDB
 ## SavedVariablesPerCharacter: AuctionManagerDBPC
+## Dependencies: CommonUtilities, AuctionData
 
 Libs\AceLibrary\AceLibrary.lua
 Libs\AceOO-2.0\AceOO-2.0.lua
@@ -17,6 +18,5 @@ Libs\AceComm-2.0\AceComm-2.0.lua
 Libs\AceConsole-2.0\AceConsole-2.0.lua
 Libs\Dewdrop-2.0\Dewdrop-2.0.lua
 
-Utilities.lua
 AuctionManager.lua
 MailboxManager.lua

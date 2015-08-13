@@ -3,11 +3,23 @@ local MM = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0", "AceEvent-2.0");
 MM.myMoneyCount = 0;
 MM.myMailCount = 0;
 
+
+--[[
+
+	Deletes the mail from the given inbox-index
+
+]]--
 function MM:DeleteMail(aMailIndex)
 	DeleteInboxItem(aMailIndex);
 	MM:ScheduleEvent(self.TakeAll, 1, self);
 end;
 
+
+--[[
+
+	Takes the item from the given inbox-index
+
+]]--
 function MM:TakeItems(aMailIndex, aMoney)
 	local _, _, _, _, _, _, _, hasItem = GetInboxHeaderInfo(1);
 	
@@ -20,16 +32,35 @@ function MM:TakeItems(aMailIndex, aMoney)
 	end;
 end;
 
+
+--[[
+
+	Returns the goldamount
+
+]]--
 function MM:GetGoldAmount()
+
 	return math.floor(MM.myMoneyCount / 10000);
 end;
 
+
+--[[
+
+	Returns the silveramount
+
+]]--
 function MM:GetSilverAmount(aGoldAmount)
 	local remainder = MM.myMoneyCount - (aGoldAmount * 10000);
 	
 	return math.floor(remainder / 100);
 end;
 
+
+--[[
+
+	Returns the copperamount
+
+]]--
 function MM:GetCopperAmount(aGoldAmount, aSilverAmount)
 	local remainder = MM.myMoneyCount - (aGoldAmount * 10000);
 	remainder = remainder - (aSilverAmount * 100);
@@ -37,6 +68,12 @@ function MM:GetCopperAmount(aGoldAmount, aSilverAmount)
 	return remainder;
 end;
 
+
+--[[
+
+	Prints how much money was retrived from the mailbox
+
+]]--
 function MM:PrintGoldAmount()
 	local gold = self:GetGoldAmount();
 	local silver = self:GetSilverAmount(gold);
@@ -45,6 +82,12 @@ function MM:PrintGoldAmount()
 	self:Print("Retrived : " .. gold .."g " .. silver .. "s " .. copper .. "c.");
 end;
 
+
+--[[
+
+	Opens all mails, takeing all the money and all the items
+
+]]--
 function MM:TakeAll()
 	if(GetInboxNumItems() == 0) then
 		self:Print("");
@@ -80,6 +123,12 @@ function MM:TakeAll()
 	
 end;
 
+
+--[[
+
+	Constructs the very configmenu
+
+]]--
 function MM:InitMenu()
 	local slashMenu = {
 		type = "group",
@@ -101,5 +150,6 @@ function MM:InitMenu()
 end;
 
 function MM:OnEnable()
+	
 	self:InitMenu();
 end
