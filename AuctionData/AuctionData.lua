@@ -17,7 +17,6 @@ function AuctionData:OnEnable()
 	self:RegisterEvent("AuctionData_UpdateMinBid", "UpdateMinBid");
 	self:RegisterEvent("AuctionData_UpdateMinBuyout", "UpdateMinBO");
 	self:RegisterEvent("AuctionData_RegisterNewSalesItem", "RegisterNewSalesItem");
-	self:RegisterEvent("AuctionData_UpdateSalesData", "UpdateSalesData");
 	self:RegisterEvent("AuctionData_AddPendingSale", "AddPendingSale");
 end;
 
@@ -343,78 +342,81 @@ end;
 
 --[[
 
-	Updates the SalesData when recieving a mail from the auctionhouse, NOT WORKING PROPERLY
+	Updates the SalesRecord when an auction was sucessful
 
 ]]--
-function AuctionData:UpdateSalesData(aMailSubject, aMoneyAmount)
+function AuctionData:UpdateSucessfulSale(aItem, aMoney)
+	if(self.db.profile.myPendingSales[aItem] == nil) then
+		self:Print("Sold item that wasnt registered to PendingSales, cant update data for that item (" .. aItem .. ")");
+		return;
+	end;
 
-	local item = nil;
-	local auctionType = nil;
+	if(self.db.profile.mySalesRecord[aItem] == nil) then
+		self:RegisterNewSalesItem(aItem);
+	end;
+
+	for key, info in pairs(self.db.profile.myPendingSales[aItem]) do
+		if(info.myExpectedReturn == aMoney) then
+			self:Print("Sucessfully sold " .. aItem .. ", updating data.");
 	
-	local startIndex, endIndex = string.find(aMailSubject, "Auction successful: ");
+			local oldAvg = self.db.profile.mySalesRecord[aItem].myAvgPrice;
+			local oldSaleCount = self.db.profile.mySalesRecord[aItem].mySucessfulSales;
 
-	if(startIndex ~= nil and endIndex ~= nil) then
-		auctionType = "sale";
-	else
-		startIndex, endIndex = string.find(aMailSubject, "Auction expired: ");
-		if(startIndex ~= nil and endIndex ~= nil) then
-			auctionType = "fail";
-		else
-			startIndex, endIndex = string.find(aMailSubject, "Auction won: ");
-			if(startIndex ~= nil and endIndex ~= nil) then
-				auctionType = "won";
-			end;
+			local oldTotal = oldAvg * oldSaleCount;
+			local newSaleCount = oldSaleCount + 1;
+
+			local newAvg = math.floor((oldTotal + info.myPricePerUnit) / newSaleCount);
+
+			self.db.profile.mySalesRecord[aItem].myAvgPrice = newAvg;
+			self.db.profile.mySalesRecord[aItem].mySucessfulSales = newSaleCount;
+
+			self.db.profile.myPendingSales[aItem][key] = nil;
+			return;
 		end;
 	end;
-	
-	if(auctionType ~= nil) then
-		item = string.sub(aMailSubject, endIndex + 1, string.len(aMailSubject))
-		
-		if(self.db.profile.mySalesRecord[item] == nil) then
-			self:RegisterNewSalesItem(item);
-		end;
-		
-		if(auctionType == "sale") then
-			if(self.db.profile.myPendingSales[aItem] ~= nil and self.db.profile.myPendingSales[aItem][aMoneyAmount] ~= nil) then
-				local newTotal = (self.db.profile.mySalesRecord[item].myAvgPrice * self.db.profile.mySalesRecord[item].mySucessfulSales) + self.db.profile.myPendingSales[aItem][aMoneyAmount].myPricePerUnit;
-				self.db.profile.mySalesRecord[item].mySucessfulSales = self.db.profile.mySalesRecord[item].mySucessfulSales + 1;
-				self.db.profile.mySalesRecord[item].myAvgPrice = newTotal / self.db.profile.mySalesRecord[item].mySucessfulSales;
-				
-				self.db.profile.myPendingSales[aItem][aMoneyAmount].myCount = self.db.profile.myPendingSales[aItem][aMoneyAmount].myCount - 1;
-				
-				if(self.db.profile.myPendingSales[aItem][aMoneyAmount].myCount == 0) then
-					self.db.profile.myPendingSales[aItem][aMoneyAmount] = nil;
-				end;
-				
-				self:Print("Sold: " .. item .. ", updating price");
-			end;
-		elseif (auctionType == "fail") then
-			self.db.profile.mySalesRecord[item].myFailedSales = self.db.profile.mySalesRecord[item].myFailedSales + 1;
-		elseif (auctionType == "won") then
-			TakeInboxItem(1, 1);
-		end;
-	end;
+
+	self:Print("Sold an item that was registered to PendingSales, but could not match the price. Item: " .. aItem .. ", Price: " .. CU:GetFullCurrency(aMoney));
+
 end;
 
+
+--[[
+
+	Updates the SalesRecord when an auction failed
+
+]]--
+function AuctionData:UpdateFailedSale(aItem, aMoney)
+	if(self.db.profile.myPendingSales[aItem] == nil) then
+		self:Print("Failed an auction, but the item wasnt registered to PendingSales, wont update data (" .. aItem .. ")");
+		return;
+	end;
+
+	if(self.db.profile.mySalesRecord[aItem] == nil) then
+		self:RegisterNewSalesItem(aItem);
+	end;
+
+	self.db.profile.mySalesRecord[item].myFailedSales = self.db.profile.mySalesRecord[item].myFailedSales + 1;
+	return;
+end;
 
 --[[
 
 	Registers a pending sale, used when posting auctions. Used to keep track of sucessful sales and track prices of sales etc
 
 ]]--
-function AuctionData:AddPendingSale(aItem, aBuyout, aStackSize)
-	local priceAfterAHCut = math.floor(aBuyout * 0.95);
-
+function AuctionData:AddPendingSale(aItem, aBuyout, aDeposit, aAHCut, aStackSize)
 	if(self.db.profile.myPendingSales[aItem] == nil) then
 		self.db.profile.myPendingSales[aItem] = {};
 	end;
+
+	local saleInfo = {
+		myBuyout = aBuyout,
+		myDeposit = aDeposit,
+		myAHCut = aAHCut,
+		myStackSize = aStackSize,
+		myPricePerUnit = math.floor(aBuyout / aStackSize),
+		myExpectedReturn = aBuyout + aDeposit - aAHCut,
+	}
 	
-	if(self.db.profile.myPendingSales[aItem][priceAfterAHCut] == nil) then
-		self.db.profile.myPendingSales[aItem][priceAfterAHCut] = {
-			myCount = 1,
-			myPricePerUnit = math.floor(priceAfterAHCut / aStackSize),
-		};
-	else
-		self.db.profile.myPendingSales[aItem][priceAfterAHCut].myCount = self.db.profile.myPendingSales[aItem][priceAfterAHCut].myCount + 1;
-	end;
+	table.insert(self.db.profile.myPendingSales[aItem], saleInfo);
 end

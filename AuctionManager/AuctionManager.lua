@@ -159,9 +159,10 @@ function AM:PlaceAuction(aItem, aBagID, aBagSlot, aStackSize, aBidPerUnit, aBOPe
 	end;
 	
 	local deposit = CalculateAuctionDeposit(480);
+	local ahCut = math.floor(buyout * 0.05);
 	
 	StartAuction(bid, buyout, 480);
-	self:TriggerEvent("AuctionData_AddPendingSale", aItem, buyout + deposit, aStackSize);
+	self:TriggerEvent("AuctionData_AddPendingSale", aItem, buyout, deposit, ahCut, aStackSize);
 	AM:ScheduleEvent(self.PostAuctions, 1, self, aItem, aBidPerUnit, aBOPerUnit, aCallBackFunction);
 end;
 
@@ -354,11 +355,11 @@ function AM:PostItemUsingUndercut(aItem)
 	local buyout = AuctionData:GetItemMinBuyout(aItem);
 	
 	
-	if(bid ~= nil and buyout ~= nil) then
+	if(bid ~= nil and bid > 0 and buyout ~= nil and buyout > 0) then
 
 		bid = math.floor(bid * self.db.profile.myUnderCutPercent);
 		buyout = math.floor(buyout * self.db.profile.myUnderCutPercent);
-		
+
 		self:Print("");
 		self:Print("Posting: " .. aItem);
 		self:Print("Bid: " .. CU:GetFullCurrency(bid));
@@ -385,7 +386,7 @@ function AM:PostItemUsingAvgPrice(aItem)
 	local bid = AuctionData:GetItemBid(aItem);
 	local buyout = AuctionData:GetItemBuyout(aItem);
 	
-	if(bid ~= nil and buyout ~= nil) then
+	if(bid ~= nil and bid > 0 and buyout ~= nil and buyout > 0) then
 		
 		bid = math.floor(bid * self.db.profile.myAvgPriceModifier);
 		buyout = math.floor(buyout * self.db.profile.myAvgPriceModifier);

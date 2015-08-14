@@ -14,25 +14,6 @@ function MM:DeleteMail(aMailIndex)
 	MM:ScheduleEvent(self.TakeAll, 1, self);
 end;
 
-
---[[
-
-	Takes the item from the given inbox-index
-
-]]--
-function MM:TakeItems(aMailIndex, aMoney)
-	local _, _, _, _, _, _, _, hasItem = GetInboxHeaderInfo(1);
-	
-	if (hasItem ~= nil) then
-		TakeInboxItem(aMailIndex, 1);
-		
-		MM:ScheduleEvent(self.TakeItems, 1, self, aMailIndex);
-	else
-		self:DeleteMail(aMailIndex);
-	end;
-end;
-
-
 --[[
 
 	Returns the goldamount
@@ -85,6 +66,70 @@ end;
 
 --[[
 
+	Handles mails from sucessful auctionsales
+
+]]--
+function MM:ProcessSucessfulSale(aItem, aMoney)
+	AuctionData:UpdateSucessfulSale(aItem, aMoney);
+	TakeInboxMoney(1);
+end;
+
+
+--[[
+
+	Handles mails from failed auctions
+
+]]--
+function MM:ProcessFailedSale(aItem, aMoney)
+	AuctionData:UpdateFailedSale(aItem, aMoney);
+	TakeInboxItem(1, 1);
+end;
+
+
+--[[
+
+	Handles won auctions
+
+]]--
+function MM:ProcessWonAuction()
+	TakeInboxItem(1, 1);
+end;
+
+--[[
+
+	Handles mails comming from the auctionhouse
+	Realy only figures out if the mail is from a sucessful sale, a failed sale or from a won auction and then redirect to the appropriate function
+
+]]--
+function MM:ProcessAuctionMail(aSubject, aMoney)
+	local item = nil;
+
+	local startIndex, endIndex = string.find(aSubject, "Auction successful: ");
+	
+
+	if(startIndex ~= nil and endIndex ~= nil) then
+		item = string.sub(aSubject, endIndex + 1, string.len(aSubject))
+		self:ProcessSucessfulSale(item, aMoney);
+		return;
+	end;
+
+	startIndex, endIndex = string.find(aSubject, "Auction expired: ");
+	if(startIndex ~= nil and endIndex ~= nil) then
+		item = string.sub(aSubject, endIndex + 1, string.len(aSubject))
+		self:ProcessFailedSale(aItem);
+		return;
+	end;
+
+	startIndex, endIndex = string.find(aSubject, "Auction won: ");
+	if(startIndex ~= nil and endIndex ~= nil) then
+		self:ProcessWonAuction();
+		return ;
+	end;
+end;
+
+
+--[[
+
 	Opens all mails, takeing all the money and all the items
 
 ]]--
@@ -98,29 +143,22 @@ function MM:TakeAll()
 
 	self.myMailCount = self.myMailCount + 1;
 
+	GetInboxText(1);
 	local _, _, sender, subject, money, _, _, hasItem = GetInboxHeaderInfo(1);
 	
 	if(sender == "Horde Auction House") then
-		self:TriggerEvent("AuctionData_UpdateSalesData", subject, money);
-		TakeInboxMoney(1);
-		MM.myMoneyCount = MM.myMoneyCount + money;
-		MM:ScheduleEvent(self.DeleteMail, 1, self, 1);
+		self:Print("Processing Auction mail...");
+		self:ProcessAuctionMail(subject, money);
 	else
-		if(money > 0) then
-			TakeInboxMoney(1);
-			MM.myMoneyCount = MM.myMoneyCount + money;
-			
-			if(hasItem == nil) then
-				MM:ScheduleEvent(self.DeleteMail, 1, self, 1);
-				return;
-			end;
+		if(hasItem > 0) then
+			TakeInboxItem(1, 1);
 		end;
-		
-		if(hasItem ~= nil) then
-			MM:ScheduleEvent(self.TakeItems, 1, self, 1);
-		end;
+
+		TakeInboxMoney(1);
 	end;
-	
+
+	MM.myMoneyCount = MM.myMoneyCount + money;
+	MM:ScheduleEvent(self.DeleteMail, 1, self, 1);
 end;
 
 
@@ -138,6 +176,7 @@ function MM:InitMenu()
 				name = 'Take All',
 				desc = 'Takes everything from the mailbox',
 				func = function()
+					CheckInbox();
 					self.myMoneyCount = 0;
 					self.myMailCount = 0;
 					self:TakeAll();
