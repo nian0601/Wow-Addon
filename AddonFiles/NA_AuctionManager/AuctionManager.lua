@@ -353,7 +353,7 @@ function AM:PostItemUsingUndercut(aItem)
 	
 	if(bid ~= nil and bid > 0 and buyout ~= nil and buyout > 0) then
 
-		bid = math.floor(bid * self.db.profile.myUnderCutPercent);
+		bid = math.floor((buyout * 0.75) * self.db.profile.myUnderCutPercent);
 		buyout = math.floor(buyout * self.db.profile.myUnderCutPercent);
 
 		self:Print("");

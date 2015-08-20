@@ -226,25 +226,29 @@ function MM:ProcessAuctionMail(aSubject, aMoney)
 	local item = nil;
 
 	local startIndex, endIndex = string.find(aSubject, "Auction successful: ");
-	
-
 	if(startIndex ~= nil and endIndex ~= nil) then
 		item = string.sub(aSubject, endIndex + 1, string.len(aSubject))
 		self:ProcessSucessfulSale(item, aMoney);
-		return;
+		return true;
 	end;
 
 	startIndex, endIndex = string.find(aSubject, "Auction expired: ");
 	if(startIndex ~= nil and endIndex ~= nil) then
 		item = string.sub(aSubject, endIndex + 1, string.len(aSubject))
 		self:ProcessFailedSale(item, aMoney);
-		return;
+		return true;
 	end;
 
 	startIndex, endIndex = string.find(aSubject, "Auction won: ");
 	if(startIndex ~= nil and endIndex ~= nil) then
 		self:ProcessWonAuction();
-		return ;
+		return false;
+	end;
+
+	startIndex, endIndex = string.find(aSubject, "Auction cancelled: ");
+	if(startIndex ~= nil and endIndex ~= nil) then
+		self:ProcessWonAuction();
+		return false;
 	end;
 end;
 
@@ -267,10 +271,10 @@ function MM:TakeAll()
 
 	GetInboxText(1);
 	local _, _, sender, subject, money, _, _, hasItem = GetInboxHeaderInfo(1);
-	
+	local shouldDelete = true;
 	if(sender == "Horde Auction House") then
 		self:Print("Processing Auction mail...");
-		self:ProcessAuctionMail(subject, money);
+		shouldDelete = self:ProcessAuctionMail(subject, money);
 	else
 		local startIndex, endIndex = string.find(subject, "Send me: ");
 
@@ -286,7 +290,12 @@ function MM:TakeAll()
 	end;
 
 	MM.myMoneyCount = MM.myMoneyCount + money;
-	MM:ScheduleEvent(self.DeleteMail, 1, self, 1);
+
+	if(shouldDelete == true) then
+		MM:ScheduleEvent(self.DeleteMail, 1, self, 1);
+	else
+		MM:shouldDelete(self.TakeAll, 1, self);
+	end;
 end;
 
 
