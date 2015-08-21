@@ -308,14 +308,13 @@ function AM:GetInventoryAsQueryTable()
 		for slot = 1, GetContainerNumSlots(bag) do
 		
 			local itemName = self:GetItemInfo(bag, slot);
-			
-			if(itemName ~= nil and inv[itemName] == nil) then
+			if(itemName ~= nil and inv[itemName] == nil and AuctionData:GetItemTable(itemName) ~= nil) then
 				inv[itemName] = {};
-				inv[itemName].myQueryFinished = false;
-				inv[itemName].myQueryStarted = false;
 			end;
 		end;
 	end;
+
+	AuctionData:FinishQuerying();
 	
 	return inv;
 end;
