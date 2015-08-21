@@ -236,7 +236,7 @@ function MM:ProcessAuctionMail(aSubject, aMoney)
 	if(startIndex ~= nil and endIndex ~= nil) then
 		item = string.sub(aSubject, endIndex + 1, string.len(aSubject))
 		self:ProcessFailedSale(item, aMoney);
-		return true;
+		return false;
 	end;
 
 	startIndex, endIndex = string.find(aSubject, "Auction won: ");
